@@ -22,7 +22,7 @@ PHDRS
 
 SECTIONS
 {
-    . =  __rpi_phys_binary_load_addr;
+    . =  __rpi_phys_dram_start_addr;
     /* Boot Core Stack */
     .boot_core_stack (NOLOAD) :
     {
