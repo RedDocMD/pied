@@ -1,0 +1,19 @@
+[package]
+name = "pied"
+version = "0.1.0"
+authors = ["Deep Majumder <deep.majumder2019@gmail.com>"]
+edition = "2021"
+
+[profile.release]
+lto = true
+
+[features]
+default = []
+bsp_rpi3 = []
+bsp_rpi4 = []
+
+[[bin]]
+name = "kernel"
+path = "src/main.rs"
+
+[dependencies]
