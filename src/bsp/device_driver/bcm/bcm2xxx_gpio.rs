@@ -4,7 +4,7 @@ use tock_registers::{
     registers::ReadWrite,
 };
 
-use crate::bsp::device_driver::common::MMIODerefWrapper;
+use crate::{bsp::device_driver::common::MMIODerefWrapper, driver};
 
 register_bitfields![
     u32,
@@ -90,5 +90,74 @@ impl GPIOInner {
         Self {
             registers: Registers::new(mmio_start_addr),
         }
+    }
+
+    // Disable pull-up/down on pins 14 and 15.
+    #[cfg(feature = "bsp_rpi3")]
+    fn disable_pud_14_15_bcm2837(&mut self) {
+        use crate::cpu;
+
+        // Make an educated guess for a good delay value (Sequence described in the BCM2837
+        // peripherals PDF).
+        //
+        // - According to Wikipedia, the fastest Pi3 clocks around 1.4 GHz.
+        // - The Linux 2837 GPIO driver waits 1 µs between the steps.
+        //
+        // So lets try to be on the safe side and default to 2000 cycles, which would equal 1 µs
+        // would the CPU be clocked at 2 GHz.
+        const DELAY: usize = 2000;
+
+        self.registers.GPPUD.write(GPPUD::PUD::Off);
+        cpu::spin_for_cycles(DELAY);
+
+        self.registers
+            .GPPUDCLK0
+            .write(GPPUDCLK0::PUDCLK15::AssertClock + GPPUDCLK0::PUDCLK14::AssertClock);
+        cpu::spin_for_cycles(DELAY);
+
+        self.registers.GPPUD.write(GPPUD::PUD::Off);
+        self.registers.GPPUDCLK0.set(0);
+    }
+
+    // Disable pull-up/down on pins 14 and 15.
+    #[cfg(feature = "bsp_rpi4")]
+    fn disable_pud_14_15_bcm2711(&mut self) {
+        self.registers.GPIO_PUP_PDN_CNTRL_REG0.write(
+            GPIO_PUP_PDN_CNTRL_REG0::GPIO_PUP_PDN_CNTRL15::PullUp
+                + GPIO_PUP_PDN_CNTRL_REG0::GPIO_PUP_PDN_CNTRL14::PullUp,
+        );
+    }
+
+    pub fn map_pl011_uart(&mut self) {
+        // TX to pin 14
+        // RX to pin 15
+        self.registers
+            .GPFSEL1
+            .modify(GPFSEL1::FSEL15::AltFunc0 + GPFSEL1::FSEL14::AltFunc0);
+
+        // Disable pull-up/down on pins 14 and 15.
+        #[cfg(feature = "bsp_rpi3")]
+        self.disable_pud_14_15_bcm2837();
+
+        #[cfg(feature = "bsp_rpi4")]
+        self.disable_pud_14_15_bcm2711();
+    }
+}
+
+impl GPIO {
+    const unsafe fn new(mmio_start_addr: usize) -> Self {
+        Self {
+            inner: Mutex::new(GPIOInner::new(mmio_start_addr)),
+        }
+    }
+
+    pub fn map_pl011_uart(&self) {
+        self.inner.lock().map_pl011_uart();
+    }
+}
+
+impl driver::DeviceDriver for GPIO {
+    fn compatible(&self) -> &'static str {
+        "BCM GPIO"
     }
 }

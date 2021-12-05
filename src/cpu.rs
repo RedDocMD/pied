@@ -4,4 +4,5 @@ mod arch_cpu;
 
 mod boot;
 
+pub use arch_cpu::spin_for_cycles;
 pub use arch_cpu::wait_forever;
