@@ -8,6 +8,9 @@ include common/docker.mk
 # Default to the RPi3.
 BSP ?= rpi3
 
+# Default to a serial device name that is common in Linux.
+DEV_SERIAL ?= /dev/ttyUSB0
+
 
 ##--------------------------------------------------------------------------------------------------
 ## Hardcoded configuration values
@@ -67,23 +70,31 @@ OBJCOPY_CMD = rust-objcopy \
     -O binary
 
 EXEC_QEMU = $(QEMU_BINARY) -M $(QEMU_MACHINE_TYPE)
+EXEC_MINIPUSH = ruby ../common/serial_rb/minipush.rb
 
 ##------------------------------------------------------------------------------
 ## Dockerization
 ##------------------------------------------------------------------------------
 DOCKER_CMD          = docker run -t --rm -v $(shell pwd):/work/tutorial -w /work/tutorial
 DOCKER_CMD_INTERACT = $(DOCKER_CMD) -i
+DOCKER_ARG_DIR_COMMON = -v $(shell pwd)/common:/work/common
+DOCKER_ARG_DEV        = --privileged -v /dev:/dev
 
 # DOCKER_IMAGE defined in include file (see top of this file).
 DOCKER_QEMU  = $(DOCKER_CMD_INTERACT) $(DOCKER_IMAGE)
 DOCKER_TOOLS = $(DOCKER_CMD) $(DOCKER_IMAGE)
 
+ifeq ($(shell uname -s),Linux)
+    DOCKER_CMD_DEV = $(DOCKER_CMD_INTERACT) $(DOCKER_ARG_DEV)
+
+    DOCKER_CHAINBOOT = $(DOCKER_CMD_DEV) $(DOCKER_ARG_DIR_COMMON) $(DOCKER_IMAGE)
+endif
 
 
 ##--------------------------------------------------------------------------------------------------
 ## Targets
 ##--------------------------------------------------------------------------------------------------
-.PHONY: all $(KERNEL_ELF) $(KERNEL_BIN) doc qemu clippy clean readelf objdump nm check
+.PHONY: all $(KERNEL_ELF) $(KERNEL_BIN) doc qemu clippy clean readelf objdump nm check chainboot
 
 all: $(KERNEL_BIN)
 
@@ -106,6 +117,9 @@ $(KERNEL_BIN): $(KERNEL_ELF)
 doc:
 	$(call colorecho, "\nGenerating docs")
 	@$(DOC_CMD) --document-private-items --open
+
+chainboot: $(KERNEL_BIN)
+	@$(DOCKER_CHAINBOOT) $(EXEC_MINIPUSH) $(DEV_SERIAL) $(CHAINBOOT_DEMO_PAYLOAD)
 
 ##------------------------------------------------------------------------------
 ## Run the kernel in QEMU

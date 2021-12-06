@@ -8,6 +8,7 @@ gem 'elftools'
 group :uart do
     gem 'ruby-progressbar'
     gem 'serialport'
+    gem 'ast'
 end
 
 group :development do
