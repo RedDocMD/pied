@@ -17,7 +17,51 @@ mod print;
 extern crate tock_registers;
 
 unsafe fn kernel_init() -> ! {
-    kprintln!("[0] Hello from Rust!");
+    use driver::DriverManager;
 
-    panic!("Stopping here.")
+    for i in bsp::driver::driver_manager().all_device_drivers().iter() {
+        if let Err(x) = i.init() {
+            panic!("Error loading driver: {}: {}", i.compatible(), x);
+        }
+    }
+    bsp::driver::driver_manager().post_device_driver_init();
+    // kprintln! is usable from here on
+
+    // Transition from unsafe to safe
+    kernel_main()
+}
+
+fn kernel_main() -> ! {
+    use bsp::console::console;
+    use console::Console;
+    use driver::DriverManager;
+
+    kprintln!(
+        "[0] {} version {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
+    kprintln!("[1] Booting on: {}", bsp::board_name());
+
+    kprintln!("[2] Drivers loaded:");
+    for (i, driver) in bsp::driver::driver_manager()
+        .all_device_drivers()
+        .iter()
+        .enumerate()
+    {
+        kprintln!("      {}. {}", i + 1, driver.compatible());
+    }
+
+    kprintln!(
+        "[3] Chars written: {}",
+        bsp::console::console().chars_written()
+    );
+    kprintln!("[4] Echoing input now");
+
+    // Discard any spurious received characters before going into echo mode.
+    console().clear_rx().unwrap();
+    loop {
+        let c = bsp::console::console().read_char().unwrap();
+        bsp::console::console().write_char(c).unwrap();
+    }
 }
