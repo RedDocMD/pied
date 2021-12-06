@@ -145,7 +145,7 @@ impl GPIOInner {
 }
 
 impl GPIO {
-    const unsafe fn new(mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
         Self {
             inner: Mutex::new(GPIOInner::new(mmio_start_addr)),
         }

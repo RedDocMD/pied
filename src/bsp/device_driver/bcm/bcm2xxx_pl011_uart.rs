@@ -150,7 +150,7 @@ pub struct PL01UartInner {
 
 pub use PL01UartInner as PanicUart;
 
-pub struct PL01Uart {
+pub struct PL011Uart {
     inner: Mutex<PL01UartInner>,
 }
 
@@ -274,7 +274,7 @@ impl fmt::Write for PL01UartInner {
     }
 }
 
-impl PL01Uart {
+impl PL011Uart {
     pub const unsafe fn new(mmio_start_addr: usize) -> Self {
         Self {
             inner: Mutex::new(PL01UartInner::new(mmio_start_addr)),
@@ -282,7 +282,7 @@ impl PL01Uart {
     }
 }
 
-impl driver::DeviceDriver for PL01Uart {
+impl driver::DeviceDriver for PL011Uart {
     fn compatible(&self) -> &'static str {
         "BCM PL011 UART"
     }
@@ -293,7 +293,7 @@ impl driver::DeviceDriver for PL01Uart {
     }
 }
 
-impl console::Write for PL01Uart {
+impl console::Write for PL011Uart {
     fn write_char(&self, c: char) -> fmt::Result {
         self.inner.lock().write_char(c);
         Ok(())
@@ -309,7 +309,7 @@ impl console::Write for PL01Uart {
     }
 }
 
-impl console::Read for PL01Uart {
+impl console::Read for PL011Uart {
     fn read_char(&self) -> Result<char, fmt::Error> {
         Ok(self
             .inner
@@ -329,7 +329,7 @@ impl console::Read for PL01Uart {
     }
 }
 
-impl console::Statistics for PL01Uart {
+impl console::Statistics for PL011Uart {
     fn chars_written(&self) -> usize {
         self.inner.lock().chars_written
     }
