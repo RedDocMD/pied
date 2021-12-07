@@ -1,17 +1,18 @@
 use std::{
     io::{Read, Write},
+    path::Path,
     time::Duration,
 };
 
 use serialport::TTYPort;
 
-struct SerialConsole {
+pub struct Serial {
     tty: TTYPort,
 }
 
 const BAUD_RATE: u32 = 921_600;
 
-impl SerialConsole {
+impl Serial {
     pub fn new(dev_name: &str) -> anyhow::Result<Self> {
         use serialport::*;
 
@@ -38,4 +39,13 @@ impl SerialConsole {
         assert!(bytes_read == 1);
         Ok(buf[0])
     }
+
+    pub fn read(&mut self, buf: &mut [u8]) -> anyhow::Result<usize> {
+        let size = self.tty.read(buf)?;
+        Ok(size)
+    }
+}
+
+pub fn is_serial_connected<P: AsRef<Path>>(tty_name: P) -> bool {
+    tty_name.as_ref().exists()
 }
