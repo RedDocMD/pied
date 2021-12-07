@@ -1,8 +1,15 @@
 use std::{
-    env, process, thread,
+    env,
+    error::Error,
+    fmt::{self, Display, Formatter},
+    fs::File,
+    io::Read,
+    path::Path,
+    process, thread,
     time::{Duration, Instant},
 };
 
+use colored::*;
 use serial::Serial;
 
 mod console;
@@ -15,6 +22,22 @@ fn main() {
         process::exit(1);
     }
     let mut serial = open_serial(&args[1]);
+    let data = match load_payload(&args[1]) {
+        Ok(data) => data,
+        Err(err) => unexpected_error(&err),
+    };
+    if let Err(err) = wait_for_payload_request(&mut serial) {
+        unexpected_error(&err);
+    }
+}
+
+fn unexpected_error(err: &anyhow::Error) -> ! {
+    println!(
+        "\n[{}] ⚡ {}",
+        SHORT_NAME,
+        format!("Unexpected Error: {}", err).bright_red()
+    );
+    process::exit(1);
 }
 
 const SHORT_NAME: &str = "SB";
@@ -42,10 +65,10 @@ fn open_serial(tty_name: &str) -> Serial {
     }
 }
 
-fn wait_for_payload_request(serial: &mut Serial) {
+fn wait_for_payload_request(serial: &mut Serial) -> anyhow::Result<()> {
     println!("[{}] 🔌 Please power the target now", SHORT_NAME);
     let mut buf = [0_u8; 4096];
-    serial.read(&mut buf).unwrap();
+    serial.read(&mut buf)?;
     let start_time = Instant::now();
     let timeout_duration = Duration::from_secs(10);
     let mut count = 0;
@@ -58,13 +81,36 @@ fn wait_for_payload_request(serial: &mut Serial) {
             if c == b'\x03' {
                 count += 1;
                 if count == 3 {
-                    return;
+                    return Ok(());
                 }
             } else {
                 count = 0;
                 print!("{}", c);
             }
         }
-        serial.read(&mut buf).unwrap();
+        serial.read(&mut buf)?;
     }
+    Err(TimeoutError {
+        duration: timeout_duration,
+    })?
+}
+
+#[derive(Debug)]
+struct TimeoutError {
+    duration: Duration,
+}
+
+impl Error for TimeoutError {}
+
+impl Display for TimeoutError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "timed out on {}s", self.duration.as_secs())
+    }
+}
+
+fn load_payload<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<u8>> {
+    let mut file = File::open(path)?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    Ok(buf)
 }
