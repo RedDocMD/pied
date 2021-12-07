@@ -1,0 +1,3 @@
+mod serial;
+
+fn main() {}
