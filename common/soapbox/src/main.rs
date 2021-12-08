@@ -3,12 +3,15 @@ use std::{
     fs::File,
     io::Read,
     path::Path,
-    process, thread,
+    process,
+    sync::{Arc, Mutex},
+    thread,
     time::{Duration, Instant},
 };
 
 use colored::*;
 use error::SoapboxResult;
+use indicatif::ProgressIterator;
 use serial::Serial;
 
 use crate::error::SoapboxError;
@@ -31,6 +34,8 @@ fn soapbox(args: &[String]) -> SoapboxResult<()> {
     wait_for_payload_request(&mut serial)?;
     let data = load_payload(&args[1])?;
     send_size(&mut serial, data.len())?;
+    send_payload(&mut serial, &data)?;
+    terminal(serial);
     Ok(())
 }
 
@@ -107,4 +112,45 @@ fn send_size(serial: &mut Serial, size: usize) -> SoapboxResult<()> {
     let size = size as u32;
     let size_le = u32::to_le_bytes(size);
     serial.write(&size_le)
+}
+
+fn send_payload(serial: &mut Serial, data: &[u8]) -> SoapboxResult<()> {
+    const BYTES_PER_SLICE: usize = 512;
+    for chunk in data.chunks(BYTES_PER_SLICE).progress() {
+        serial.write(chunk)?;
+    }
+    Ok(())
+}
+
+fn terminal(serial: Serial) {
+    let serial_recv = Arc::new(Mutex::new(serial));
+    let serial_send = Arc::clone(&serial_recv);
+
+    let (kill_send, kill_recv) = std::sync::mpsc::sync_channel(2);
+
+    let receiver = thread::spawn(move || loop {
+        if let Ok(_) = kill_recv.try_recv() {
+            break;
+        }
+        let ch = {
+            let mut serial = serial_recv.lock().unwrap();
+            serial.getc().unwrap()
+        };
+        if ch == b'\n' {
+            console::putc(b'\r').unwrap();
+        }
+        console::putc(ch).unwrap();
+    });
+
+    loop {
+        let ch = console::getc().unwrap();
+        if ch == b'\x03' {
+            kill_send.send(()).unwrap();
+            break;
+        }
+        let mut serial = serial_send.lock().unwrap();
+        serial.putc(ch).unwrap();
+    }
+
+    receiver.join().unwrap();
 }
