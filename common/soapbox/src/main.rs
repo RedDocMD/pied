@@ -1,7 +1,5 @@
 use std::{
     env,
-    error::Error,
-    fmt::{self, Display, Formatter},
     fs::File,
     io::Read,
     path::Path,
@@ -10,9 +8,13 @@ use std::{
 };
 
 use colored::*;
+use error::SoapboxResult;
 use serial::Serial;
 
+use crate::error::SoapboxError;
+
 mod console;
+mod error;
 mod serial;
 
 fn main() {
@@ -21,24 +23,25 @@ fn main() {
         println!("Usage: {} <serial-port> <input-file>", args[0]);
         process::exit(1);
     }
-    let mut serial = open_serial(&args[1]);
-    let data = match load_payload(&args[1]) {
-        Ok(data) => data,
-        Err(err) => unexpected_error(&err),
-    };
-    if let Err(err) = wait_for_payload_request(&mut serial) {
-        unexpected_error(&err);
-    }
+    soapbox(&args);
 }
 
-fn unexpected_error(err: &anyhow::Error) -> ! {
-    println!(
-        "\n[{}] ⚡ {}",
-        SHORT_NAME,
-        format!("Unexpected Error: {}", err).bright_red()
-    );
-    process::exit(1);
+fn soapbox(args: &[String]) -> SoapboxResult<()> {
+    let mut serial = open_serial(&args[1]);
+    wait_for_payload_request(&mut serial)?;
+    let data = load_payload(&args[1])?;
+    send_size(&mut serial, data.len())?;
+    Ok(())
 }
+
+// fn unexpected_error(err: &anyhow::Error) -> ! {
+//     println!(
+//         "\n[{}] ⚡ {}",
+//         SHORT_NAME,
+//         format!("Unexpected Error: {}", err).bright_red()
+//     );
+//     process::exit(1);
+// }
 
 const SHORT_NAME: &str = "SB";
 
@@ -65,7 +68,7 @@ fn open_serial(tty_name: &str) -> Serial {
     }
 }
 
-fn wait_for_payload_request(serial: &mut Serial) -> anyhow::Result<()> {
+fn wait_for_payload_request(serial: &mut Serial) -> SoapboxResult<()> {
     println!("[{}] 🔌 Please power the target now", SHORT_NAME);
     let mut buf = [0_u8; 4096];
     serial.read(&mut buf)?;
@@ -90,27 +93,18 @@ fn wait_for_payload_request(serial: &mut Serial) -> anyhow::Result<()> {
         }
         serial.read(&mut buf)?;
     }
-    Err(TimeoutError {
-        duration: timeout_duration,
-    })?
+    Err(SoapboxError::TimeoutError(timeout_duration.as_secs()))
 }
 
-#[derive(Debug)]
-struct TimeoutError {
-    duration: Duration,
-}
-
-impl Error for TimeoutError {}
-
-impl Display for TimeoutError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "timed out on {}s", self.duration.as_secs())
-    }
-}
-
-fn load_payload<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<u8>> {
+fn load_payload<P: AsRef<Path>>(path: P) -> SoapboxResult<Vec<u8>> {
     let mut file = File::open(path)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
     Ok(buf)
+}
+
+fn send_size(serial: &mut Serial, size: usize) -> SoapboxResult<()> {
+    let size = size as u32;
+    let size_le = u32::to_le_bytes(size);
+    serial.write(&size_le)
 }

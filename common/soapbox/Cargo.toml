@@ -6,5 +6,5 @@ edition = "2021"
 
 [dependencies]
 serialport = "~4"
-anyhow = "~1"
 colored = "~2"
+thiserror = "~1"

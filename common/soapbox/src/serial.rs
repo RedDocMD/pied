@@ -6,6 +6,8 @@ use std::{
 
 use serialport::TTYPort;
 
+use crate::error::SoapboxResult;
+
 pub struct Serial {
     tty: TTYPort,
 }
@@ -13,7 +15,7 @@ pub struct Serial {
 const BAUD_RATE: u32 = 921_600;
 
 impl Serial {
-    pub fn new(dev_name: &str) -> anyhow::Result<Self> {
+    pub fn new(dev_name: &str) -> SoapboxResult<Self> {
         use serialport::*;
 
         let port_builder = serialport::new(dev_name, BAUD_RATE)
@@ -26,23 +28,28 @@ impl Serial {
         Ok(Self { tty })
     }
 
-    pub fn putc(&mut self, b: u8) -> anyhow::Result<()> {
+    pub fn putc(&mut self, b: u8) -> SoapboxResult<()> {
         let buf = [b];
         self.tty.write(&buf)?;
         self.tty.flush()?;
         Ok(())
     }
 
-    pub fn getc(&mut self) -> anyhow::Result<u8> {
+    pub fn getc(&mut self) -> SoapboxResult<u8> {
         let mut buf = [0_u8; 1];
         let bytes_read = self.tty.read(&mut buf)?;
         assert!(bytes_read == 1);
         Ok(buf[0])
     }
 
-    pub fn read(&mut self, buf: &mut [u8]) -> anyhow::Result<usize> {
+    pub fn read(&mut self, buf: &mut [u8]) -> SoapboxResult<usize> {
         let size = self.tty.read(buf)?;
         Ok(size)
+    }
+
+    pub fn write(&mut self, buf: &[u8]) -> SoapboxResult<()> {
+        self.tty.write_all(buf)?;
+        Ok(())
     }
 }
 
