@@ -65,6 +65,7 @@ class MiniPush < MiniTerm
     end
 
     def send_payload
+        puts "[#{@name_short}] ⏩ Sending #{@payload_path} ..."
         pb = ProgressBar.create(
             total: @payload_size,
             format: "[#{@name_short}] ⏩ Pushing %k KiB %b🦀%i %p%% %r KiB/s %a",
