@@ -26,7 +26,7 @@ fn main() {
         println!("Usage: {} <serial-port> <input-file>", args[0]);
         process::exit(1);
     }
-    soapbox(&args);
+    soapbox(&args).unwrap();
 }
 
 fn soapbox(args: &[String]) -> SoapboxResult<()> {
@@ -123,6 +123,7 @@ fn send_payload(serial: &mut Serial, data: &[u8]) -> SoapboxResult<()> {
 }
 
 fn terminal(serial: Serial) {
+    println!("terminal!");
     let serial_recv = Arc::new(Mutex::new(serial));
     let serial_send = Arc::clone(&serial_recv);
 

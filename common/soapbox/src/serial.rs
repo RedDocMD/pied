@@ -23,7 +23,7 @@ impl Serial {
             .flow_control(FlowControl::None)
             .parity(Parity::None)
             .stop_bits(StopBits::One)
-            .timeout(Duration::from_secs(100));
+            .timeout(Duration::from_secs(5));
         let tty = TTYPort::open(&port_builder)?;
         Ok(Self { tty })
     }
