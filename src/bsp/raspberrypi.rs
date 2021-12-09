@@ -2,6 +2,7 @@ pub mod console;
 pub mod cpu;
 pub mod driver;
 pub mod memory;
+pub mod power;
 
 use super::device_driver;
 
