@@ -11,6 +11,7 @@ mod bsp;
 mod console;
 mod cpu;
 mod driver;
+mod null_lock;
 mod panic_wait;
 mod print;
 

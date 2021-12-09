@@ -1,4 +1,4 @@
-use spin::Mutex;
+use crate::null_lock::Mutex;
 use tock_registers::{
     interfaces::{ReadWriteable, Writeable},
     registers::ReadWrite,
