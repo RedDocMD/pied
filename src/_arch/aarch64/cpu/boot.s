@@ -18,17 +18,6 @@
 	add	\register, \register, #:lo12:\symbol
 .endm
 
-// Load the address of a symbol into a register, absolute.
-//
-// # Resources
-//
-// - https://sourceware.org/binutils/docs-2.36/as/AArch64_002dRelocations.html
-.macro ADR_ABS register, symbol
-	movz	\register, #:abs_g2:\symbol
-	movk	\register, #:abs_g1_nc:\symbol
-	movk	\register, #:abs_g0_nc:\symbol
-.endm
-
 .equ _core_id_mask, 0b11
 
 //--------------------------------------------------------------------------------------------------

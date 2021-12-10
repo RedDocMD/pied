@@ -3,6 +3,7 @@ use super::memory::*;
 const PM_WDOG_MAGIC: u32 = 0x5A00_0000;
 const PM_RSTC_FULLRST: u32 = 0x0000_0020;
 
+#[allow(dead_code)]
 pub fn board_reset() {
     let mut r = unsafe { core::ptr::read(board_pm_rsts()) };
     r &= !0xFFFF_FAAA;
