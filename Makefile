@@ -121,7 +121,7 @@ doc:
 	@$(DOC_CMD) --document-private-items --open
 
 chainboot: $(KERNEL_BIN)
-	@$(DOCKER_CHAINBOOT) $(EXEC_MINIPUSH) $(DEV_SERIAL) $(CHAINBOOT_DEMO_PAYLOAD)
+	@$(DOCKER_CHAINBOOT) $(EXEC_MINIPUSH) $(DEV_SERIAL) $(KERNEL_BIN)
 
 ##------------------------------------------------------------------------------
 ## Run the kernel in QEMU

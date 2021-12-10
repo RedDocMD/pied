@@ -1,5 +1,4 @@
 #![feature(global_asm)]
-#![feature(asm)]
 #![feature(format_args_nl)]
 #![feature(panic_info_message)]
 #![feature(trait_alias)]
@@ -14,6 +13,7 @@ mod driver;
 mod null_lock;
 mod panic_wait;
 mod print;
+mod time;
 
 #[macro_use]
 extern crate tock_registers;
@@ -33,61 +33,37 @@ unsafe fn kernel_init() -> ! {
     kernel_main()
 }
 
-const MINILOAD_LOGO: &str = r#"
-  __  __ _       _ _                     _ 
- |  \/  (_)     (_) |                   | |
- | \  / |_ _ __  _| |     ___   __ _  __| |
- | |\/| | | '_ \| | |    / _ \ / _` |/ _` |
- | |  | | | | | | | |___| (_) | (_| | (_| |
- |_|  |_|_|_| |_|_|______\___/ \__,_|\__,_|
-
-"#;
-
 fn kernel_main() -> ! {
-    use bsp::console::console;
-    use console::Console;
+    use core::time::Duration;
+    use driver::DriverManager;
+    use time::TimeManager;
 
-    kprintln!("{}", MINILOAD_LOGO);
-    kprintln!("{:^37}", bsp::board_name());
-    kprintln!("");
-    kprintln!("[ML] Requesting binary");
-    console().flush().unwrap();
+    kinfo!(
+        "{} version {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
+    kinfo!("Booting on: {}", bsp::board_name());
 
-    // Discard any spurious received characters before starting with the loader protocol
-    console().clear_rx().unwrap();
+    kinfo!(
+        "Architectural timer resolution: {} ns",
+        time::time_manager().resolution().as_nanos()
+    );
 
-    // Notify Minipush to send the binary
-    for _ in 0..3 {
-        console().write_char(3 as char).unwrap();
+    kinfo!("Drivers loaded:");
+    for (i, driver) in bsp::driver::driver_manager()
+        .all_device_drivers()
+        .iter()
+        .enumerate()
+    {
+        kinfo!("      {}. {}", i + 1, driver.compatible());
     }
 
-    // Read the binary's size
-    let mut buf = [0_u8; 4];
-    for i in 0..buf.len() {
-        buf[i] = console().read_char().unwrap() as u8;
+    // Test a failing timer case.
+    time::time_manager().spin_for(Duration::from_nanos(1));
+
+    loop {
+        kinfo!("Spinning for 1 second");
+        time::time_manager().spin_for(Duration::from_secs(1));
     }
-    // Assume we have a little-endian development system
-    let size = u32::from_le_bytes(buf);
-
-    // Trust it's not too big
-    console().write_char('O').unwrap();
-    console().write_char('K').unwrap();
-
-    let kernel_addr: *mut u8 = bsp::memory::board_default_load_addr() as *mut u8;
-    unsafe {
-        // Read the kernel byte by byte
-        for i in 0..size {
-            let byte = console().read_char().unwrap() as u8;
-            core::ptr::write_volatile(kernel_addr.offset(i as isize), byte);
-        }
-    }
-
-    kprintln!("[ML] Loaded! Executing the payload now\n");
-    console().flush().unwrap();
-
-    // Create the function pointer like a C programmer
-    let kernel: fn() -> ! = unsafe { core::mem::transmute(kernel_addr) };
-
-    // Jump to loaded kernel
-    kernel()
 }
