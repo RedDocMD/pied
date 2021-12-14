@@ -18,6 +18,7 @@
 	add	\register, \register, #:lo12:\symbol
 .endm
 
+.equ _EL2, 0x8
 .equ _core_id_mask, 0b11
 
 //--------------------------------------------------------------------------------------------------
@@ -29,6 +30,11 @@
 // fn _start()
 //------------------------------------------------------------------------------
 _start:
+	// Only proceed if the cores executes in EL2. Park it otherwise.
+	mrs x0, CurrentEL
+	cmp x0, _EL2
+	b.ne .L_parking_loop
+	
 	// Only proceed on the boot core. Park it otherwise.
 	mrs	x1, MPIDR_EL1
 	and	x1, x1, _core_id_mask

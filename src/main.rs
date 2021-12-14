@@ -10,6 +10,7 @@ mod bsp;
 mod console;
 mod cpu;
 mod driver;
+mod exception;
 mod null_lock;
 mod panic_wait;
 mod print;
@@ -34,6 +35,8 @@ unsafe fn kernel_init() -> ! {
 }
 
 fn kernel_main() -> ! {
+    use bsp::console::console;
+    use console::Console;
     use core::time::Duration;
     use driver::DriverManager;
     use time::TimeManager;
@@ -44,6 +47,12 @@ fn kernel_main() -> ! {
         env!("CARGO_PKG_VERSION")
     );
     kinfo!("Booting on: {}", bsp::board_name());
+
+    let (_, privilege_level) = exception::current_privillege_level();
+    kinfo!("Current privilege level: {}", privilege_level);
+
+    kinfo!("Exception handling state:");
+    exception::asynchronous::print_state();
 
     kinfo!(
         "Architectural timer resolution: {} ns",
@@ -59,11 +68,14 @@ fn kernel_main() -> ! {
         kinfo!("      {}. {}", i + 1, driver.compatible());
     }
 
-    // Test a failing timer case.
-    time::time_manager().spin_for(Duration::from_nanos(1));
+    kinfo!("Timer test, spinning for 1 second");
+    time::time_manager().spin_for(Duration::from_secs(1));
+
+    kinfo!("Echoing input now");
+    console().clear_rx().unwrap();
 
     loop {
-        kinfo!("Spinning for 1 second");
-        time::time_manager().spin_for(Duration::from_secs(1));
+        let c = console().read_char().unwrap();
+        console().write_char(c).unwrap();
     }
 }
