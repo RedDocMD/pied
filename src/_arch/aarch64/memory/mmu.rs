@@ -57,13 +57,14 @@ impl MemoryManagementUnit {
         TCR_EL1.write(
             TCR_EL1::TBI0::Used
                 + TCR_EL1::IPS::Bits_40
+                + TCR_EL1::TG0::KiB_64
                 + TCR_EL1::SH0::Inner
                 + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
                 + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
                 + TCR_EL1::EPD0::EnableTTBR0Walks
                 + TCR_EL1::A1::TTBR0
                 + TCR_EL1::T0SZ.val(t0sz)
-                + TCR_EL1::EPD0::DisableTTBR0Walks,
+                + TCR_EL1::EPD1::DisableTTBR1Walks,
         );
     }
 }
@@ -105,6 +106,7 @@ impl memory::mmu::MMU for MemoryManagementUnit {
         barrier::isb(barrier::SY);
 
         // Enable the MMU and turn on data and instruction caching
+        // FIXME: I don't work! I literally hang!
         SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
 
         // Force the MMU init to complete before next instruction
