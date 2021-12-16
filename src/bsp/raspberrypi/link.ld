@@ -1,7 +1,5 @@
-/* SPDX-License-Identifier: MIT OR Apache-2.0
- *
- * Copyright (c) 2018-2021 Andre Richter <andre.o.richter@gmail.com>
- */
+PAGE_SIZE = 64K;
+PAGE_MASK = PAGE_SIZE - 1;
 
 __rpi_phys_dram_start_addr = 0;
 
@@ -42,9 +40,12 @@ SECTIONS
         __boot_core_stack_end_exclusive = .; /*   |             */
     } :segment_boot_core_stack
 
+    ASSERT((. & PAGE_MASK) == 0, "End of boot core stack is not page aligned")
+
     /***********************************************************************************************
     * Code + RO Data + Global Offset Table
     ***********************************************************************************************/
+    __code_start = .;
     .text :
     {
         KEEP(*(.text._start))
@@ -55,6 +56,9 @@ SECTIONS
 
     .rodata : ALIGN(8) { *(.rodata*) } :segment_code
     .got    : ALIGN(8) { *(.got)     } :segment_code
+
+    . = ALIGN(PAGE_SIZE);
+    __code_end_exclusive = .;
 
     /***********************************************************************************************
     * Data + BSS

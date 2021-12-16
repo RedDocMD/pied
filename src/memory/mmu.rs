@@ -1,3 +1,9 @@
+#[cfg(target_arch = "aarch64")]
+#[path = "../_arch/aarch64/memory/mmu.rs"]
+mod arch_mmu;
+
+pub use arch_mmu::mmu;
+
 mod translation_table;
 
 #[derive(Debug)]

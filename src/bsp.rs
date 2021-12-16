@@ -4,4 +4,4 @@ mod raspberrypi;
 #[cfg(any(feature = "bsp_rpi3", feature = "bsp_rpi4"))]
 pub use raspberrypi::*;
 
-mod device_driver;
+pub mod device_driver;

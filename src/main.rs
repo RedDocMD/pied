@@ -3,6 +3,7 @@
 #![feature(panic_info_message)]
 #![feature(trait_alias)]
 #![feature(const_fn_fn_ptr_basics)]
+#![feature(core_intrinsics)]
 #![no_main]
 #![no_std]
 
@@ -22,6 +23,11 @@ extern crate tock_registers;
 
 unsafe fn kernel_init() -> ! {
     use driver::DriverManager;
+    use memory::mmu::MMU;
+
+    if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
+        panic!("MMU: {}", string);
+    }
 
     for i in bsp::driver::driver_manager().all_device_drivers().iter() {
         if let Err(x) = i.init() {
@@ -49,6 +55,9 @@ fn kernel_main() -> ! {
     );
     kinfo!("Booting on: {}", bsp::board_name());
 
+    kinfo!("MMU online. Special regions:");
+    bsp::memory::mmu::virt_mem_layout().print_layout();
+
     let (_, privilege_level) = exception::current_privillege_level();
     kinfo!("Current privilege level: {}", privilege_level);
 
@@ -71,6 +80,13 @@ fn kernel_main() -> ! {
 
     kinfo!("Timer test, spinning for 1 second");
     time::time_manager().spin_for(Duration::from_secs(1));
+
+    let remapped_uart = unsafe { bsp::device_driver::PL011Uart::new(0x1FFF_1000) };
+    writeln!(
+        remapped_uart,
+        "[     !!!    ] Writing through the remapped UART at 0x1FFF_1000"
+    )
+    .unwrap();
 
     kinfo!("Echoing input now");
     console().clear_rx().unwrap();
