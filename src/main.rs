@@ -13,7 +13,6 @@ mod cpu;
 mod driver;
 mod exception;
 mod memory;
-mod null_lock;
 mod panic_wait;
 mod print;
 mod time;

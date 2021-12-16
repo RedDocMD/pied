@@ -1,6 +1,6 @@
 use core::fmt::{self, Write};
 
-use crate::null_lock::Mutex;
+use spin::Mutex;
 use tock_registers::{
     interfaces::{Readable, Writeable},
     registers::{ReadOnly, ReadWrite, WriteOnly},
