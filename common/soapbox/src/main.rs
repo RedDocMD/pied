@@ -9,7 +9,7 @@ use std::{
 
 use colored::*;
 use error::SoapboxResult;
-use indicatif::ProgressIterator;
+use indicatif::{HumanBytes, ProgressBar, ProgressStyle};
 use serial::Serial;
 
 use crate::error::SoapboxError;
@@ -126,9 +126,25 @@ fn send_size(serial: &mut Serial, size: usize) -> SoapboxResult<()> {
 fn send_payload(serial: &mut Serial, data: &[u8], path: &str) -> SoapboxResult<()> {
     println!("[{}] ⏩ Sending {} ...", SHORT_NAME, path);
     const BYTES_PER_SLICE: usize = 512;
-    for chunk in data.chunks(BYTES_PER_SLICE).progress() {
+    let chunk_cnt = if data.len() % BYTES_PER_SLICE == 0 {
+        data.len() / BYTES_PER_SLICE
+    } else {
+        data.len() / BYTES_PER_SLICE + 1
+    };
+    let bar = ProgressBar::new(chunk_cnt as u64).with_style(
+        ProgressStyle::default_bar()
+            .template(&format!(
+                "[{}] ⏩ Pushing {} {{bar:50}} {{percent}}% {{bytes_per_sec}} Time: {{eta_precise}}",
+                SHORT_NAME,
+                HumanBytes(data.len() as u64)
+            ))
+            .progress_chars("=🦀 "),
+    );
+    for chunk in data.chunks(BYTES_PER_SLICE) {
         serial.write(chunk)?;
+        bar.inc(1);
     }
+    bar.finish();
     Ok(())
 }
 
