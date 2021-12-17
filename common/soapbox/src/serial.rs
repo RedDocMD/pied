@@ -1,5 +1,5 @@
 use std::{
-    io::{Read, Write},
+    io::{self, Read, Write},
     path::Path,
     time::Duration,
 };
@@ -23,33 +23,48 @@ impl Serial {
             .flow_control(FlowControl::None)
             .parity(Parity::None)
             .stop_bits(StopBits::One)
-            .timeout(Duration::from_secs(5));
+            .timeout(Duration::from_secs(0));
         let tty = port_builder.open()?;
         Ok(Self { tty })
     }
 
     pub fn putc(&mut self, b: u8) -> SoapboxResult<()> {
         let buf = [b];
-        self.tty.write(&buf)?;
-        self.tty.flush()?;
-        Ok(())
+        self.write(&buf)
     }
 
     pub fn getc(&mut self) -> SoapboxResult<u8> {
         let mut buf = [0_u8; 1];
-        let bytes_read = self.tty.read(&mut buf)?;
+        let bytes_read = self.read(&mut buf)?;
         assert!(bytes_read == 1);
         Ok(buf[0])
     }
 
-    pub fn read(&mut self, buf: &mut [u8]) -> SoapboxResult<usize> {
-        let size = self.tty.read(buf)?;
+    pub fn read_partial(&mut self, buf: &mut [u8]) -> SoapboxResult<usize> {
+        self.tty.set_timeout(Duration::from_secs(0))?;
+        let size = match self.tty.read(buf) {
+            Ok(len) => len,
+            Err(err) => {
+                let io_error: serialport::Error = err.into();
+                if let serialport::ErrorKind::Io(kind) = io_error.kind {
+                    if kind == io::ErrorKind::TimedOut {
+                        return Ok(0);
+                    }
+                }
+                return Err(io_error)?;
+            }
+        };
         Ok(size)
+    }
+
+    pub fn read(&mut self, buf: &mut [u8]) -> SoapboxResult<usize> {
+        self.tty.set_timeout(Duration::from_secs(1000_000))?;
+        Ok(self.tty.read(buf)?)
     }
 
     pub fn write(&mut self, buf: &[u8]) -> SoapboxResult<()> {
         self.tty.write_all(buf)?;
-        Ok(())
+        Ok(self.tty.flush()?)
     }
 }
 

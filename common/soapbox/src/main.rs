@@ -76,11 +76,14 @@ fn open_serial(tty_name: &str) -> Serial {
 
 fn wait_for_payload_request(serial: &mut Serial) -> SoapboxResult<()> {
     println!("[{}] 🔌 Please power the target now", SHORT_NAME);
+
     let mut buf = [0_u8; 4096];
-    let mut len = serial.read(&mut buf)?;
+    let mut count = 0;
+
     let start_time = Instant::now();
     let timeout_duration = Duration::from_secs(10);
-    let mut count = 0;
+
+    let mut len = serial.read_partial(&mut buf)?;
     loop {
         let curr_time = Instant::now();
         if curr_time - start_time > timeout_duration {
@@ -97,7 +100,7 @@ fn wait_for_payload_request(serial: &mut Serial) -> SoapboxResult<()> {
                 print!("{}", *c as char);
             }
         }
-        len = serial.read(&mut buf)?;
+        len = serial.read_partial(&mut buf)?;
     }
     Err(SoapboxError::TimeoutError(timeout_duration.as_secs()))
 }
