@@ -24,7 +24,43 @@ fn main() {
         println!("Usage: {} <serial-port> <input-file>", args[0]);
         process::exit(1);
     }
-    soapbox(&args).unwrap();
+    ctrlc::set_handler(|| {
+        println!("\n[{}] Bye 👋", SHORT_NAME);
+        process::exit(1);
+    })
+    .expect("Error setting Ctrl+C handler");
+    loop {
+        if let Err(err) = soapbox(&args) {
+            match err {
+                SoapboxError::IOError(err) => fatal_error(err.to_string()),
+                SoapboxError::SerialError(err) => fatal_error(err.to_string()),
+                SoapboxError::TimeoutError(_) | SoapboxError::ProtocolError(_) => {
+                    reconnect_message()
+                }
+            }
+        } else {
+            break;
+        }
+    }
+}
+
+fn reconnect_message() {
+    println!(
+        "\n[{}] ⚡ {}: {}",
+        SHORT_NAME,
+        "Connection or protocol Error".bright_red().bold(),
+        "Remove power and USB serial. Reinsert serial first, then power".bright_red(),
+    );
+}
+
+fn fatal_error(mess: String) -> ! {
+    println!(
+        "\n[{}] ⚡ {}: {}",
+        SHORT_NAME,
+        "Unexpected Error".bright_red().bold(),
+        mess.bright_red()
+    );
+    process::exit(1);
 }
 
 fn soapbox(args: &[String]) -> SoapboxResult<()> {
@@ -39,15 +75,6 @@ fn soapbox(args: &[String]) -> SoapboxResult<()> {
     terminal(serial);
     Ok(())
 }
-
-// fn unexpected_error(err: &anyhow::Error) -> ! {
-//     println!(
-//         "\n[{}] ⚡ {}",
-//         SHORT_NAME,
-//         format!("Unexpected Error: {}", err).bright_red()
-//     );
-//     process::exit(1);
-// }
 
 const SHORT_NAME: &str = "SB";
 
