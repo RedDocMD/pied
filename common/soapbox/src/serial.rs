@@ -4,12 +4,12 @@ use std::{
     time::Duration,
 };
 
-use serialport::TTYPort;
+use serialport::SerialPort;
 
 use crate::error::SoapboxResult;
 
 pub struct Serial {
-    tty: TTYPort,
+    tty: Box<dyn SerialPort>,
 }
 
 const BAUD_RATE: u32 = 921_600;
@@ -24,7 +24,7 @@ impl Serial {
             .parity(Parity::None)
             .stop_bits(StopBits::One)
             .timeout(Duration::from_secs(5));
-        let tty = TTYPort::open(&port_builder)?;
+        let tty = port_builder.open()?;
         Ok(Self { tty })
     }
 

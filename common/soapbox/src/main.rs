@@ -1,7 +1,5 @@
 use std::{
-    env,
-    fs::File,
-    io::Read,
+    env, fs,
     path::Path,
     process,
     sync::{Arc, Mutex},
@@ -30,11 +28,14 @@ fn main() {
 }
 
 fn soapbox(args: &[String]) -> SoapboxResult<()> {
-    let mut serial = open_serial(&args[1]);
+    let serial_port_name = &args[1];
+    let payload_path = &args[2];
+
+    let mut serial = open_serial(serial_port_name);
     wait_for_payload_request(&mut serial)?;
-    let data = load_payload(&args[1])?;
+    let data = load_payload(payload_path)?;
     send_size(&mut serial, data.len())?;
-    send_payload(&mut serial, &data)?;
+    send_payload(&mut serial, &data, payload_path)?;
     terminal(serial);
     Ok(())
 }
@@ -76,7 +77,7 @@ fn open_serial(tty_name: &str) -> Serial {
 fn wait_for_payload_request(serial: &mut Serial) -> SoapboxResult<()> {
     println!("[{}] 🔌 Please power the target now", SHORT_NAME);
     let mut buf = [0_u8; 4096];
-    serial.read(&mut buf)?;
+    let mut len = serial.read(&mut buf)?;
     let start_time = Instant::now();
     let timeout_duration = Duration::from_secs(10);
     let mut count = 0;
@@ -85,36 +86,42 @@ fn wait_for_payload_request(serial: &mut Serial) -> SoapboxResult<()> {
         if curr_time - start_time > timeout_duration {
             break;
         }
-        for c in buf {
-            if c == b'\x03' {
+        for c in &buf[..len] {
+            if *c == b'\x03' {
                 count += 1;
                 if count == 3 {
                     return Ok(());
                 }
             } else {
                 count = 0;
-                print!("{}", c);
+                print!("{}", *c as char);
             }
         }
-        serial.read(&mut buf)?;
+        len = serial.read(&mut buf)?;
     }
     Err(SoapboxError::TimeoutError(timeout_duration.as_secs()))
 }
 
 fn load_payload<P: AsRef<Path>>(path: P) -> SoapboxResult<Vec<u8>> {
-    let mut file = File::open(path)?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    Ok(buf)
+    Ok(fs::read(path)?)
 }
 
 fn send_size(serial: &mut Serial, size: usize) -> SoapboxResult<()> {
     let size = size as u32;
     let size_le = u32::to_le_bytes(size);
-    serial.write(&size_le)
+    serial.write(&size_le)?;
+    let mut buf = [0_u8; 2];
+    serial.read(&mut buf)?;
+    if &buf != b"OK" {
+        return Err(SoapboxError::ProtocolError(
+            "Expected to receive \"OK\" after size was sent",
+        ));
+    }
+    Ok(())
 }
 
-fn send_payload(serial: &mut Serial, data: &[u8]) -> SoapboxResult<()> {
+fn send_payload(serial: &mut Serial, data: &[u8], path: &str) -> SoapboxResult<()> {
+    println!("[{}] ⏩ Sending {} ...", SHORT_NAME, path);
     const BYTES_PER_SLICE: usize = 512;
     for chunk in data.chunks(BYTES_PER_SLICE).progress() {
         serial.write(chunk)?;
@@ -123,7 +130,6 @@ fn send_payload(serial: &mut Serial, data: &[u8]) -> SoapboxResult<()> {
 }
 
 fn terminal(serial: Serial) {
-    println!("terminal!");
     let serial_recv = Arc::new(Mutex::new(serial));
     let serial_send = Arc::clone(&serial_recv);
 

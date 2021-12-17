@@ -12,6 +12,9 @@ pub enum SoapboxError {
 
     #[error("Timeout error: {0}s")]
     TimeoutError(u64),
+
+    #[error("Protocol error: {0}")]
+    ProtocolError(&'static str),
 }
 
 pub type SoapboxResult<T> = Result<T, SoapboxError>;
