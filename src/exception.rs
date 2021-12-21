@@ -4,7 +4,7 @@ mod arch_exception;
 
 pub mod asynchronous;
 
-pub use arch_exception::current_privillege_level;
+pub use arch_exception::{current_privillege_level, handling_init};
 
 #[derive(PartialEq)]
 pub enum PrivilegeLevel {
