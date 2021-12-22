@@ -1,9 +1,11 @@
 #![feature(global_asm)]
+#![feature(asm)]
 #![feature(format_args_nl)]
 #![feature(panic_info_message)]
 #![feature(trait_alias)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(core_intrinsics)]
+#![feature(stmt_expr_attributes)]
 #![no_std]
 // Testing
 #![cfg_attr(test, no_main)]
