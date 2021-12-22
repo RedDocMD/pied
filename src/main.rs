@@ -1,25 +1,10 @@
-#![feature(global_asm)]
 #![feature(format_args_nl)]
-#![feature(panic_info_message)]
-#![feature(trait_alias)]
-#![feature(const_fn_fn_ptr_basics)]
-#![feature(core_intrinsics)]
 #![no_main]
 #![no_std]
 
-mod bsp;
-mod console;
-mod cpu;
-mod driver;
-mod exception;
-mod memory;
-mod panic_wait;
-mod print;
-mod time;
+use libkernel::*;
 
-#[macro_use]
-extern crate tock_registers;
-
+#[no_mangle]
 unsafe fn kernel_init() -> ! {
     use driver::DriverManager;
     use memory::mmu::MMU;

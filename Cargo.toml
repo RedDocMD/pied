@@ -16,6 +16,10 @@ bsp_rpi4 = ["tock-registers"]
 name = "kernel"
 path = "src/main.rs"
 
+[lib]
+name = "libkernel"
+test = false
+
 [dependencies]
 
 [dependencies.tock-registers]
